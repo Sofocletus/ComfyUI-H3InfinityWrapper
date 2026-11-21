@@ -1,5 +1,7 @@
 # ComfyUI-H3InfinityWrapper
 
+
+
 A [ComfyUI](https://github.com/comfyanonymous/ComfyUI) custom node suite that wraps **[Herrgott's H3 Infinite Continuation Suite](https://github.com/MisterX014/herrgotts-h3-infinite-continuation-suite)** to unlock **Lead-In** and **Bridge** video generation workflows using MiniMax H3's native Masked AV inpainting.
 
 ## Features
@@ -10,7 +12,7 @@ A [ComfyUI](https://github.com/comfyanonymous/ComfyUI) custom node suite that wr
 - **H3 Infinite Wrapper Stitch Saved Chain** — Stitch all saved clips into one continuous video
 
 ### Initial setup
-    Type or paste a folder path into the Project text input at the top-center of the Project Manager, all files will be stored in that folder, the node will store all the parameters so opening a project folder again will restore the shots, takes and all project settings.
+Type or paste a folder path into the Project text input at the top-center of the Project Manager, all files will be stored in that folder, the node will store all the parameters so opening a project folder again will restore the shots, takes and all project settings.
 
 ### Use guideline
 - Select the workflow you want to use, workflows are stored in custom_nodes/ComfyUI-H3InfiniteWrapper/, the Project Manager uses 5 workflows, api_bridge, api_continue, api_lead, api_start and api_stitch.
@@ -31,7 +33,7 @@ A [ComfyUI](https://github.com/comfyanonymous/ComfyUI) custom node suite that wr
 - Stitched branches are saved in the project's root folder.
 
 ### Generation modes supported
-    The Project Manager will automatically select the generation mode according to the position of the shot you create or re-generate.
+The Project Manager will automatically select the generation mode according to the position of the shot you create or re-generate.
 - First shot in a sequence will use **Start Mode**.
 - Creating a new shot after another uses the **Continue Mode**.
 - Creating or re-generating a shot before the starting shot activates the **Lead-In Mode**, it generates a video that blends seamlessly *into the start* of the next video.
