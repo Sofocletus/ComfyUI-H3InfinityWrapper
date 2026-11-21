@@ -8,23 +8,44 @@ A [ComfyUI](https://github.com/comfyanonymous/ComfyUI) custom node suite that wr
 - **H3 Infinite Wrapper Start** — Generate the first clip in a continuation chain
 - **H3 Infinite Wrapper Continue** — Chain clips together seamlessly (Clip 1 → Clip 2 → Clip 3…)
 - **H3 Infinite Wrapper Stitch Saved Chain** — Stitch all saved clips into one continuous video
-- **H3 Infinite Latent Combine** — Combine latents for batch processing
 
-### Lead-In & Bridge Support *(Custom Extensions)*
-- **Lead-In Mode** — Generate a video that blends seamlessly *into the start* of an existing video (reverse continuation)
-- **Bridge Mode** — Insert a seamless transition *between two* existing videos
-- **H3 Infinite Insert Video** node (`insert_video.py`) — Single-node interface for both Lead-In and Bridge workflows
+### Initial setup
+    Type or paste a folder path into the Project text input at the top-center of the Project Manager, all files will be stored in that folder, the node will store all the parameters so opening a project folder again will restore the shots, takes and all project settings.
 
-### Advanced Fixes
-- **Phase-0 Forward Snapping** — Aligns tail-lock to clean 17-frame / 5-token VAE boundaries, eliminating causal VAE bleed and micro-jump glitches
-- **Stale Pre-Head Crossfade Fix** — Detects Bridge → Continue seams and disables stale pre-head crossfades & luminance matching that cause visible flashes
-- **Synthetic Handover Output** — Generates v1.4-compatible handover dicts automatically, no extra nodes needed
+### Use guideline
+- Select the workflow you want to use, workflows are stored in custom_nodes/ComfyUI-H3InfiniteWrapper/, the Project Manager uses 5 workflows, api_bridge, api_continue, api_lead, api_start and api_stitch.
+    The node reads the prefix of each workflow and dynamically loads and executes the correct workflow depending on the generation mode, the workflows without a prefix appear as the "Default" workflow.
+    If you want to create your own workflow you must create a version of each of the four types (bridge, continue, lead and start) and give each one the same prefix in the form of "_customName", for example api_bridge_example, api_continue_example, api_lead_example, api_start_example; it will appear as "Example" in the workflows list.
+    When you save your own workflows use the File>Export(API) method.
+- Select the Minimax model you want to use, note that the API workflow  H3 Wrapper - Settings Payload API has outputs for UNET_MODEL and DIFFUSION_MODEL, use the first one with a GGUF model loader and the second for safetensors models, the Project Manager will then only show you one or the other according to the API workflow's choice. *Do not mix GGUF and safetensors models in the workflows*.
+- Select Sampler, Scheduler, steps, the video size and Global LoRA if you want to use it (it applies to all shots when generating), don't change this settings between shots.
+- You can set a Global Prompt that will remain active for every shot you generate, you can change it for different shots.
+- On the right panel you can type your prompt, add start/end images being mindful that different generation modes use either a star, end, and start and end images. A first image in a Continue shot will (should?) be ignored when generation.
+- You get two LoRAs that you can apply independently in every shot.
+- Set the frame length, keep in mind the shot will be shorter than this because of the context frames at the start, end, or both ends of the shot.
+- You can create multiple shots and generate them all in one go if you check "All in Timeline".
+- Create a starting shot, use the "< New Shot" or "New Shot >" buttons to add another shot before or after. When generating you will see a live preview as it generates.
+- After a the generation is finished you can play the video in the timeline, you'll see a new Take in the bottom gallery and a tree graph at the bottom right, you can create multiple takes of the same shot, the branching graph will show you how they connect through the different timelines. It's AI video creation meets Choose Your Own Adventure situation.
+- You can Ctrl + Right click to enable/disable takes to build the branch you want to stitch, you can stitch multiple branches at the same time with the "All Branches" option enabled.
+- All files are saved in the project folder, you will see folders with a date and time folder name, each one is a Shot as shown in the Project Manager, inside each Shot folder you can find the individual Take folders, containing a video preview, the AV latent and a take_data.json.
+- Stitched branches are saved in the project's root folder.
+
+### Generation modes supported
+    The Project Manager will automatically select the generation mode according to the position of the shot you create or re-generate.
+- First shot in a sequence will use **Start Mode**.
+- Creating a new shot after another uses the **Continue Mode**.
+- Creating or re-generating a shot before the starting shot activates the **Lead-In Mode**, it generates a video that blends seamlessly *into the start* of the next video.
+- If you create or re-generate a shot between two existing shots the **Bridge Mode** is used, it inserts a seamless transition *between two* existing videos
+
+
 
 ## Installation
 
 ### Prerequisites
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) installed and running
-- A MiniMax H3 API key or local GGUF model access (depends on your inference backend)
+- KJNodes (https://github.com/kijai/ComfyUI-KJNodes/tree/main) for the live preview when generating, using the taeh3.safetensors model (https://huggingface.co/Kijai/MiniMax-H3-TAE/tree/main/vae_approx)
+- ComfyUI-Spectrum-MiniMax-H3 (https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3) is used by the example API workflows.
+- The API workflows in custom_nodes\ComfyUI-H3InfinityWrapper\workflows may contain other custom nodes that need to be installed, verify that those workflows have no errors before using the Project Manager.
 
 ### Install the Wrapper
 
