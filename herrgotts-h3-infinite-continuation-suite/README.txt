@@ -1,0 +1,1 @@
+Make a backup of __init__.py and nodes.py and copy this files into the custom_nodes\herrgotts-h3-infinite-continuation-suite folder, they are necessary for the H3InfinityWrapper nodes to work. It should not affect the normal function of the Herrgott nodes... I guess, what's why you make a backup.

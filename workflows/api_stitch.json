@@ -1,0 +1,78 @@
+{
+  "2": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "3": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "7": {
+    "inputs": {
+      "latent_prefix": [
+        "8",
+        11
+      ],
+      "first_clip": 1,
+      "last_clip": 0,
+      "filename_prefix": [
+        "8",
+        12
+      ],
+      "video_crossfade_frames": 4,
+      "audio_crossfade_ms": 15,
+      "luminance_match": false,
+      "luminance_fade_frames": 16,
+      "max_luminance_correction_percent": 10,
+      "crf": 18,
+      "max_safe_tail_bridge_frames": 0,
+      "video_vae": [
+        "2",
+        0
+      ],
+      "audio_vae": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "H3ContinuousStitchSavedChainV14",
+    "_meta": {
+      "title": "H3 Infinite - Stitch Saved Chain — Masked AV v1.4",
+      "cnr_id": "herrgotts-h3-infinite-continuation-suite",
+      "ver": "1.4.0"
+    }
+  },
+  "8": {
+    "inputs": {
+      "prompt": "",
+      "width": 864,
+      "height": 480,
+      "duration": 5,
+      "seed": 0,
+      "load_path": "",
+      "take_dir": "",
+      "stitch_paths_json": "[]",
+      "stitch_mp4_path": "",
+      "latent_prefix": "",
+      "filename_prefix": ""
+    },
+    "class_type": "H3InfinityWrapper_ProjectPayload",
+    "_meta": {
+      "title": "H3 Wrapper - Project Payload API"
+    }
+  }
+}

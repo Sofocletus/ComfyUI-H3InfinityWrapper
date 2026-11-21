@@ -1,0 +1,537 @@
+{
+  "3": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "4": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "8": {
+    "inputs": {
+      "prompt": [
+        "50",
+        0
+      ],
+      "width": [
+        "50",
+        1
+      ],
+      "height": [
+        "50",
+        2
+      ],
+      "duration": [
+        "50",
+        3
+      ],
+      "masked_context_frames": [
+        "56",
+        3
+      ],
+      "audio_feather_ticks": 0,
+      "ref_image_size": "match",
+      "duration_mode": "Total Generation",
+      "audio_tail_carryover": "Full Previous Tail",
+      "clip": [
+        "34",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ],
+      "previous_latent": [
+        "49",
+        0
+      ],
+      "handover": [
+        "49",
+        1
+      ],
+      "last_frame": [
+        "56",
+        13
+      ]
+    },
+    "class_type": "H3ContinuousContinueV14",
+    "_meta": {
+      "title": "H3 Infinite - Continue — Native Masked AV v1.4",
+      "cnr_id": "herrgotts-h3-infinite-continuation-suite",
+      "ver": "1.4.0"
+    }
+  },
+  "9": {
+    "inputs": {
+      "shift_video": 12,
+      "shift_audio": 3,
+      "model": [
+        "36",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3SigmaShift",
+    "_meta": {
+      "title": "ModelSamplingMiniMaxH3",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "10": {
+    "inputs": {
+      "model": [
+        "9",
+        0
+      ],
+      "conditioning": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "Basic Guider",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "11": {
+    "inputs": {
+      "sampler_name": [
+        "56",
+        2
+      ]
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "12": {
+    "inputs": {
+      "scheduler": [
+        "56",
+        1
+      ],
+      "steps": [
+        "56",
+        0
+      ],
+      "denoise": 1,
+      "model": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "13": {
+    "inputs": {
+      "noise_seed": [
+        "50",
+        4
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "14": {
+    "inputs": {
+      "noise": [
+        "13",
+        0
+      ],
+      "guider": [
+        "10",
+        0
+      ],
+      "sampler": [
+        "11",
+        0
+      ],
+      "sigmas": [
+        "12",
+        0
+      ],
+      "latent_image": [
+        "8",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "15": {
+    "inputs": {
+      "samples": [
+        "14",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "16": {
+    "inputs": {
+      "samples": [
+        "14",
+        0
+      ],
+      "vae": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE Decode Audio",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "22": {
+    "inputs": {
+      "preset": "Balanced",
+      "analysis_window": 72,
+      "freeze_hold": 8,
+      "safety_margin": 3,
+      "context_frames": [
+        "56",
+        3
+      ],
+      "analysis_size": 192,
+      "final_mean_diff_threshold": 0.012,
+      "final_active_pixel_threshold": 0.025,
+      "max_final_active_area_percent": 3,
+      "transition_mean_diff_threshold": 0.002,
+      "transition_active_pixel_threshold": 0.01,
+      "max_transition_active_area_percent": 1,
+      "min_static_transition_percent": 70,
+      "max_consecutive_motion_outliers": 2,
+      "final_reference_frames": 15,
+      "min_final_match_percent": 75,
+      "max_consecutive_final_outliers": 3,
+      "safety_mode": "fixed",
+      "images": [
+        "15",
+        0
+      ]
+    },
+    "class_type": "H3ContinuousAnalyzeHandoverV14",
+    "_meta": {
+      "title": "H3 Infinite - Auto Handover — Masked AV v1.4",
+      "cnr_id": "herrgotts-h3-infinite-continuation-suite",
+      "ver": "1.4.0"
+    }
+  },
+  "33": {
+    "inputs": {
+      "unet_name": [
+        "56",
+        4
+      ]
+    },
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "UNET Loader (GGUF) ⚡",
+      "cnr_id": "comfyui-gguf-loader",
+      "ver": "1.5.33"
+    }
+  },
+  "34": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP",
+      "cnr_id": "comfy-core",
+      "ver": "0.45.0"
+    }
+  },
+  "35": {
+    "inputs": {
+      "enabled": true,
+      "blend_weight": 0.5,
+      "degree": 1,
+      "ridge_lambda": 0.1,
+      "window_size": 2,
+      "flex_window": 0.75,
+      "warmup_steps": 1,
+      "tail_actual_steps": 1,
+      "max_history": 8,
+      "debug": false,
+      "history_storage": "system_ram",
+      "bootstrap_first_forecast": true,
+      "anchor_residual_feedback": false,
+      "selective_rollback_correction": false,
+      "offline_smoothing_replay": true,
+      "audio_blend_weight": 0,
+      "offline_archive_storage": "system_ram",
+      "model_aware_mode": "off",
+      "model_aware_risk_threshold": 0.65,
+      "model_aware_trust_shrinkage": false,
+      "model_aware_replay_generic_correction": false,
+      "generic_correction_mode": "coordinate_rls",
+      "generic_correction_limiter": "hard_clip",
+      "generic_correction_limit": 0.4,
+      "generic_correction_attenuation": "no_attenuation",
+      "sa_pece_forecast_policy": "balanced",
+      "model": [
+        "55",
+        0
+      ]
+    },
+    "class_type": "SpectrumApplyMiniMaxH3",
+    "_meta": {
+      "title": "Spectrum Apply MiniMax H3",
+      "cnr_id": "comfyui-spectrum-minimax-h3",
+      "ver": "0.2.30"
+    }
+  },
+  "36": {
+    "inputs": {
+      "max_resolution": 1024,
+      "jpeg_quality": 80,
+      "suppress_default_preview": true,
+      "preview_frames": 24,
+      "preview_fps": 4,
+      "tiny_vae": "taeh3_decoder.safetensors",
+      "model": [
+        "35",
+        0
+      ]
+    },
+    "class_type": "ModelPreviewOverrideKJ",
+    "_meta": {
+      "title": "Model Preview Override",
+      "cnr_id": "comfyui-kjnodes",
+      "ver": "1.5.4"
+    }
+  },
+  "45": {
+    "inputs": {
+      "latent_path": [
+        "50",
+        7
+      ],
+      "prompt": [
+        "50",
+        0
+      ],
+      "duration": [
+        "50",
+        3
+      ],
+      "seed": [
+        "50",
+        4
+      ],
+      "head_context_frames": [
+        "8",
+        2
+      ],
+      "latent": [
+        "14",
+        0
+      ],
+      "handover": [
+        "22",
+        0
+      ]
+    },
+    "class_type": "H3InfinityWrapper_ProjectTakeOutput",
+    "_meta": {
+      "title": "H3 Wrapper - Unified Take Output"
+    }
+  },
+  "46": {
+    "inputs": {
+      "preview_path": [
+        "50",
+        8
+      ],
+      "fps": 24,
+      "images": [
+        "15",
+        0
+      ],
+      "audio": [
+        "16",
+        0
+      ]
+    },
+    "class_type": "H3InfinityWrapper_SavePreviewVideo",
+    "_meta": {
+      "title": "H3 Wrapper - Save Preview Video"
+    }
+  },
+  "49": {
+    "inputs": {
+      "absolute_latent_path": [
+        "50",
+        5
+      ]
+    },
+    "class_type": "H3InfinityWrapper_ProjectLoadLatent",
+    "_meta": {
+      "title": "H3 Wrapper - Project Load Latent"
+    }
+  },
+  "50": {
+    "inputs": {
+      "prompt": "",
+      "width": 864,
+      "height": 480,
+      "duration": 5,
+      "seed": 0,
+      "load_path": "",
+      "take_dir": "",
+      "stitch_paths_json": "[]",
+      "stitch_mp4_path": "",
+      "latent_prefix": "",
+      "filename_prefix": "",
+      "next_load_path": ""
+    },
+    "class_type": "H3InfinityWrapper_ProjectPayload",
+    "_meta": {
+      "title": "H3 Wrapper - Project Payload API"
+    }
+  },
+  "54": {
+    "inputs": {
+      "active": [
+        "56",
+        6
+      ],
+      "lora_name": [
+        "56",
+        7
+      ],
+      "strength_model": [
+        "56",
+        8
+      ],
+      "model": [
+        "57",
+        0
+      ]
+    },
+    "class_type": "H3InfinityWrapper_SwitchableLoRA",
+    "_meta": {
+      "title": "H3 Wrapper - Switchable LoRA (Model Only)"
+    }
+  },
+  "55": {
+    "inputs": {
+      "active": [
+        "56",
+        9
+      ],
+      "lora_name": [
+        "56",
+        10
+      ],
+      "strength_model": [
+        "56",
+        11
+      ],
+      "model": [
+        "54",
+        0
+      ]
+    },
+    "class_type": "H3InfinityWrapper_SwitchableLoRA",
+    "_meta": {
+      "title": "H3 Wrapper - Switchable LoRA (Model Only)"
+    }
+  },
+  "56": {
+    "inputs": {
+      "steps": 12,
+      "scheduler": "simple",
+      "sampler_name": "euler",
+      "context_frames": 39,
+      "unet_model": "LTX-2.5-Distilled-Q4_K_M.gguf",
+      "diffusion_model": "Krea2/raw.safetensors",
+      "active_1": true,
+      "lora_1": "60sPsychadelicMovieZ_000002000.safetensors",
+      "lora_strength_1": 1,
+      "active_2": true,
+      "lora_2": "60sPsychadelicMovieZ_000002000.safetensors",
+      "lora_strength_2": 1,
+      "first_frame_path": "",
+      "last_frame_path": "",
+      "global_lora_active": false,
+      "global_lora": "60sPsychadelicMovieZ_000002000.safetensors",
+      "global_lora_strength": 1
+    },
+    "class_type": "H3InfinityWrapper_SettingsPayload",
+    "_meta": {
+      "title": "H3 Wrapper - Settings Payload API"
+    }
+  },
+  "57": {
+    "inputs": {
+      "active": [
+        "56",
+        14
+      ],
+      "lora_name": [
+        "56",
+        15
+      ],
+      "strength_model": [
+        "56",
+        16
+      ],
+      "model": [
+        "33",
+        0
+      ]
+    },
+    "class_type": "H3InfinityWrapper_SwitchableLoRA",
+    "_meta": {
+      "title": "H3 Wrapper - Switchable LoRA (Model Only)"
+    }
+  }
+}
