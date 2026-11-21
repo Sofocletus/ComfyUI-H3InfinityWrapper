@@ -1,6 +1,6 @@
 # ComfyUI-H3InfinityWrapper
 
-
+![Alt text describing the image]([path/to/image.png](https://raw.githubusercontent.com/Sofocletus/ComfyUI-H3InfinityWrapper/refs/heads/main/docs/H3InfiniteWrapper_ProjectManager_v01.PNG))
 
 A [ComfyUI](https://github.com/comfyanonymous/ComfyUI) custom node suite that wraps **[Herrgott's H3 Infinite Continuation Suite](https://github.com/MisterX014/herrgotts-h3-infinite-continuation-suite)** to unlock **Lead-In** and **Bridge** video generation workflows using MiniMax H3's native Masked AV inpainting.
 
