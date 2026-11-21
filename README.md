@@ -3,8 +3,7 @@
 ![Project Manager node screenshot](docs/H3InfiniteWrapper_ProjectManager_v01.PNG)
 
 <video controls width="640" style="max-width: 100%;">
-  <source src="./docs/test01_v001_branch108.mp4" type="video/mp4">
-  Your browser does not support the video tag.
+  <source src="./docs/test01_v001_branch108.mp4" type="video">
 </video>
 
 A [ComfyUI](https://github.com/comfyanonymous/ComfyUI) custom node suite that wraps **[Herrgott's H3 Infinite Continuation Suite](https://github.com/MisterX014/herrgotts-h3-infinite-continuation-suite)** to unlock **Lead-In** and **Bridge** video generation workflows using MiniMax H3's native Masked AV inpainting.
