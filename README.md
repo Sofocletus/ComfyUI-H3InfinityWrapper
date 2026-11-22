@@ -2,7 +2,7 @@
 
 ![Project Manager node screenshot](docs/H3InfiniteWrapper_ProjectManager_v01.PNG)
 
-A [ComfyUI](https://github.com/comfyanonymous/ComfyUI) custom node suite that wraps **[Herrgott's H3 Infinite Continuation Suite](https://github.com/MisterX014/herrgotts-h3-infinite-continuation-suite)** to unlock **Lead-In** and **Bridge** video generation workflows using MiniMax H3's native Masked AV inpainting.
+A [ComfyUI](https://github.com/comfyanonymous/ComfyUI) custom node suite that wraps **[Herrgott's H3 Infinite Continuation Suite](https://github.com/HerrgottMargott/Herrgotts-H3-Infinite-Continuation-Suite)** to unlock **Lead-In** and **Bridge** video generation workflows using MiniMax H3's native Masked AV inpainting.
 It also provides a video generation and video sequence timeline UI to make the process much more simple and convenient.
 
 ## Features
@@ -146,7 +146,7 @@ ComfyUI-H3InfinityWrapper/
 
 ## Credits
 
-- **[Herrgott's H3 Infinite Continuation Suite](https://github.com/MisterX014/herrgotts-h3-infinite-continuation-suite)** by [MisterX014](https://github.com/MisterX014) — The foundation this wrapper builds upon
+- **[Herrgott's H3 Infinite Continuation Suite](https://github.com/HerrgottMargott/Herrgotts-H3-Infinite-Continuation-Suite)** by [HerrgottMargott] (https://github.com/HerrgottMargott) — The foundation this wrapper builds upon
 - **[ComfyUI](https://github.com/comfyanonymous/ComfyUI)** by [comfyanonymous](https://github.com/comfyanonymous) — The visual node-based UI for Stable Diffusion
 
 ## License
