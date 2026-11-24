@@ -13,40 +13,43 @@ import comfy.utils
 from PIL import Image, ImageOps
 import numpy as np
 
+
 def get_h3_funcs():
     h3_save_class = nodes.NODE_CLASS_MAPPINGS.get("H3ContinuousSaveLatent")
     if h3_save_class is None:
         raise RuntimeError("H3 Infinity Wrapper Error: Base Herrgott H3 nodes not found in ComfyUI!")
-    
+
     h3_module = sys.modules[h3_save_class.__module__]
     return (
         getattr(h3_module, "_streams_from_latent"),
         getattr(h3_module, "pixel_frames")
     )
 
+
 def get_strict_model_list(folder_name):
     paths = folder_paths.get_folder_paths(folder_name)
     if not paths:
         paths = [os.path.join(folder_paths.models_dir, folder_name)]
-        
+
     valid_exts = {'.safetensors', '.pt', '.ckpt', '.gguf', '.bin'}
     results = []
-    
+
     for base_path in paths:
         normalized_base = os.path.normpath(base_path)
         if os.path.basename(normalized_base).lower() != folder_name.lower():
-            continue 
-            
+            continue
+
         if not os.path.exists(base_path):
             continue
-            
+
         for root, dirs, files in os.walk(base_path):
             for file in files:
                 if os.path.splitext(file)[1].lower() in valid_exts:
                     rel_path = os.path.relpath(os.path.join(root, file), base_path)
                     results.append(rel_path.replace("\\", "/"))
-                    
+
     return sorted(list(set(results)))
+
 
 # ==============================================================================
 # UI NODES
@@ -68,6 +71,7 @@ class H3InfinityWrapper_ProjectManager:
 
     def do_nothing(self, **kwargs):
         return ()
+
 
 class H3InfinityWrapper_Controller:
     """The original Boilerplate Node - retained for development and raw testing."""
@@ -136,11 +140,28 @@ class H3InfinityWrapper_SettingsPayload:
                 "global_lora_active": ("BOOLEAN", {"default": False}),
                 "global_lora": (get_strict_model_list("loras"), ),
                 "global_lora_strength": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.05}),
+                "ref2v_mode": ("BOOLEAN", {"default": False}),
+                "ref_image_1_path": ("STRING", {"default": ""}),
+                "ref_image_2_path": ("STRING", {"default": ""}),
+                "ref_image_3_path": ("STRING", {"default": ""}),
+                "ref_image_4_path": ("STRING", {"default": ""}),
             }
         }
-        
-    RETURN_TYPES = ("INT", "*", "*", "*", "*", "*", "BOOLEAN", "*", "FLOAT", "BOOLEAN", "*", "FLOAT", "IMAGE", "IMAGE", "BOOLEAN", "*", "FLOAT")
-    RETURN_NAMES = ("STEPS", "SCHEDULER", "SAMPLER_NAME", "CONTEXT_FRAMES", "UNET_MODEL", "DIFFUSION_MODEL", "ACTIVE_1", "LORA_1", "LORA_STRENGTH_1", "ACTIVE_2", "LORA_2", "LORA_STRENGTH_2", "FIRST_FRAME", "LAST_FRAME", "GLOBAL_LORA_ACTIVE", "GLOBAL_LORA", "GLOBAL_LORA_STRENGTH")
+
+    RETURN_TYPES = (
+        "INT", "*", "*", "*", "*", "*",
+        "BOOLEAN", "*", "FLOAT", "BOOLEAN", "*", "FLOAT",
+        "IMAGE", "IMAGE",
+        "BOOLEAN", "*", "FLOAT",
+        "BOOLEAN", "IMAGE", "IMAGE", "IMAGE", "IMAGE"
+    )
+    RETURN_NAMES = (
+        "STEPS", "SCHEDULER", "SAMPLER_NAME", "CONTEXT_FRAMES", "UNET_MODEL", "DIFFUSION_MODEL",
+        "ACTIVE_1", "LORA_1", "LORA_STRENGTH_1", "ACTIVE_2", "LORA_2", "LORA_STRENGTH_2",
+        "FIRST_FRAME", "LAST_FRAME",
+        "GLOBAL_LORA_ACTIVE", "GLOBAL_LORA", "GLOBAL_LORA_STRENGTH",
+        "REF2V_MODE", "REF_IMAGE_1", "REF_IMAGE_2", "REF_IMAGE_3", "REF_IMAGE_4"
+    )
     FUNCTION = "dispatch"
     CATEGORY = "H3 API Wrappers"
 
@@ -156,12 +177,29 @@ class H3InfinityWrapper_SettingsPayload:
             return image
         except Exception as e:
             print(f"H3 Wrapper Error loading image {path}: {e}")
-            return None 
+            return None
 
-    def dispatch(self, steps, scheduler, sampler_name, context_frames, unet_model, diffusion_model, active_1, lora_1, lora_strength_1, active_2, lora_2, lora_strength_2, first_frame_path, last_frame_path, global_lora_active=False, global_lora="", global_lora_strength=1.0):
+    def dispatch(
+        self, steps, scheduler, sampler_name, context_frames, unet_model, diffusion_model,
+        active_1, lora_1, lora_strength_1, active_2, lora_2, lora_strength_2,
+        first_frame_path, last_frame_path,
+        global_lora_active=False, global_lora="", global_lora_strength=1.0,
+        ref2v_mode=False, ref_image_1_path="", ref_image_2_path="", ref_image_3_path="", ref_image_4_path=""
+    ):
         img1 = self.load_image(first_frame_path)
         img2 = self.load_image(last_frame_path)
-        return (steps, scheduler, sampler_name, context_frames, unet_model, diffusion_model, active_1, lora_1, lora_strength_1, active_2, lora_2, lora_strength_2, img1, img2, global_lora_active, global_lora, global_lora_strength)
+        ref1 = self.load_image(ref_image_1_path) if ref2v_mode else None
+        ref2 = self.load_image(ref_image_2_path) if ref2v_mode else None
+        ref3 = self.load_image(ref_image_3_path) if ref2v_mode else None
+        ref4 = self.load_image(ref_image_4_path) if ref2v_mode else None
+        return (
+            steps, scheduler, sampler_name, context_frames, unet_model, diffusion_model,
+            active_1, lora_1, lora_strength_1, active_2, lora_2, lora_strength_2,
+            img1, img2,
+            global_lora_active, global_lora, global_lora_strength,
+            bool(ref2v_mode), ref1, ref2, ref3, ref4
+        )
+
 
 class H3InfinityWrapper_ProjectPayload:
     @classmethod
@@ -184,7 +222,7 @@ class H3InfinityWrapper_ProjectPayload:
                 "next_load_path": ("STRING", {"default": ""}),
             }
         }
-        
+
     RETURN_TYPES = ("STRING", "INT", "INT", "FLOAT", "INT", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING")
     RETURN_NAMES = ("PROMPT", "WIDTH", "HEIGHT", "DURATION", "SEED", "LOAD_PATH", "TAKE_DIR", "LATENT_PATH", "PREVIEW_PATH", "STITCH_PATHS", "STITCH_MP4", "LATENT_PREFIX", "FILENAME_PREFIX", "NEXT_LOAD_PATH")
     FUNCTION = "dispatch"
@@ -193,7 +231,7 @@ class H3InfinityWrapper_ProjectPayload:
     def dispatch(self, prompt, width, height, duration, seed, load_path, take_dir, stitch_paths_json, stitch_mp4_path, latent_prefix="", filename_prefix="", next_load_path=""):
         latent_path = ""
         preview_path = ""
-        
+
         if take_dir:
             parts = os.path.normpath(take_dir).split(os.sep)
             if len(parts) >= 2 and parts[-1].startswith("Take_"):
@@ -206,11 +244,12 @@ class H3InfinityWrapper_ProjectPayload:
                 prefix = f"{shot_str}_{take_str}_"
             else:
                 prefix = ""
-                
+
             latent_path = os.path.join(take_dir, f"{prefix}latent.safetensors")
             preview_path = os.path.join(take_dir, f"{prefix}preview.mp4")
-            
+
         return (prompt, width, height, duration, seed, load_path, take_dir, latent_path, preview_path, stitch_paths_json, stitch_mp4_path, latent_prefix, filename_prefix, next_load_path)
+
 
 class H3InfinityWrapper_SwitchableLoRA:
     @classmethod
@@ -243,11 +282,12 @@ class H3InfinityWrapper_SwitchableLoRA:
         model_lora, _ = comfy.sd.load_lora_for_models(model, None, lora, strength_model, 0)
         return (model_lora,)
 
+
 class H3InfinityWrapper_ProjectLoadLatent:
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {"absolute_latent_path": ("STRING", {"default": ""})}}
-    
+
     RETURN_TYPES = ("LATENT", "H3_CONTINUOUS_HANDOVER", "STRING")
     RETURN_NAMES = ("latent", "handover", "info")
     FUNCTION = "load"
@@ -257,7 +297,7 @@ class H3InfinityWrapper_ProjectLoadLatent:
         _, pixel_frames = get_h3_funcs()
         if not os.path.exists(absolute_latent_path):
             raise FileNotFoundError(f"Project Load failed: Path not found {absolute_latent_path}")
-            
+
         tensors = st_load(absolute_latent_path, device="cpu")
         video, audio = tensors["video"], tensors["audio"]
         frame_count = pixel_frames(video.shape[2])
@@ -286,6 +326,7 @@ class H3InfinityWrapper_ProjectLoadLatent:
         info = f"Loaded {frame_count} frames from {os.path.basename(os.path.dirname(absolute_latent_path))}"
         return (latent, handover, info)
 
+
 class H3InfinityWrapper_ProjectTakeOutput:
     @classmethod
     def INPUT_TYPES(cls):
@@ -310,12 +351,12 @@ class H3InfinityWrapper_ProjectTakeOutput:
 
     def save_latent_and_data(self, latent_path, latent, prompt, duration, seed, handover=None, head_context_frames=0):
         _streams_from_latent, pixel_frames = get_h3_funcs()
-        
+
         take_dir = os.path.dirname(latent_path)
         os.makedirs(take_dir, exist_ok=True)
-        
-        base_name = os.path.basename(latent_path) 
-        prefix = base_name.replace("latent.safetensors", "") 
+
+        base_name = os.path.basename(latent_path)
+        prefix = base_name.replace("latent.safetensors", "")
 
         take_data_path = os.path.join(take_dir, f"{prefix}take_data.json")
         take_data = {}
@@ -338,7 +379,7 @@ class H3InfinityWrapper_ProjectTakeOutput:
         video, audio = _streams_from_latent(latent)
         video_cpu, audio_cpu = video.detach().cpu().contiguous(), audio.detach().cpu().contiguous()
         frame_count = pixel_frames(video_cpu.shape[2])
-        
+
         metadata = {
             "format": "h3_continuous_av_v8",
             "frame_count": str(frame_count),
@@ -353,6 +394,7 @@ class H3InfinityWrapper_ProjectTakeOutput:
 
         st_save({"video": video_cpu, "audio": audio_cpu}, latent_path, metadata=metadata)
         return (latent_path,)
+
 
 class H3InfinityWrapper_SavePreviewVideo:
     @classmethod
@@ -378,29 +420,63 @@ class H3InfinityWrapper_SavePreviewVideo:
             return ("",)
 
         os.makedirs(os.path.dirname(preview_path), exist_ok=True)
-        
+
         try:
             import av
-            import numpy as np
-            
+
             container = av.open(preview_path, mode='w')
             video_stream = container.add_stream('h264', rate=fps)
             video_stream.width = images.shape[2]
             video_stream.height = images.shape[1]
             video_stream.pix_fmt = 'yuv420p'
-            
+
+            audio_stream = None
+            audio_np = None
+            sample_rate = 24000
+            layout = "stereo"
+
+            if isinstance(audio, dict) and audio.get("waveform") is not None:
+                waveform = audio["waveform"]
+                sample_rate = int(audio.get("sample_rate", 24000))
+                if waveform.ndim == 3:
+                    waveform = waveform[0]
+                elif waveform.ndim == 1:
+                    waveform = waveform.unsqueeze(0)
+                if waveform.shape[0] > 2:
+                    waveform = waveform[:2]
+
+                if waveform.shape[1] > 0:
+                    layout = "mono" if waveform.shape[0] == 1 else "stereo"
+                    audio_np = np.ascontiguousarray(
+                        waveform.detach().cpu().float().clamp(-1.0, 1.0).numpy()
+                    )
+                    audio_stream = container.add_stream("aac", rate=sample_rate)
+                    audio_stream.layout = layout
+
             frames = (images.cpu().numpy() * 255.0).clip(0, 255).astype(np.uint8)
-            
             for i in range(frames.shape[0]):
                 frame = av.VideoFrame.from_ndarray(frames[i], format='rgb24')
                 for packet in video_stream.encode(frame):
                     container.mux(packet)
             for packet in video_stream.encode():
                 container.mux(packet)
-                
+
+            if audio_stream is not None and audio_np is not None:
+                chunk_size = 1024
+                total_samples = audio_np.shape[1]
+                for start in range(0, total_samples, chunk_size):
+                    chunk = np.ascontiguousarray(audio_np[:, start:start + chunk_size])
+                    aframe = av.AudioFrame.from_ndarray(chunk, format="fltp", layout=layout)
+                    aframe.sample_rate = sample_rate
+                    aframe.pts = start
+                    for packet in audio_stream.encode(aframe):
+                        container.mux(packet)
+                for packet in audio_stream.encode():
+                    container.mux(packet)
+
             container.close()
-            print(f"H3 Wrapper: Saved preview.mp4 to {preview_path}")
-            
+            print(f"H3 Wrapper: Saved preview.mp4 to {preview_path} (audio={'yes' if audio_stream else 'no'})")
+
         except Exception as e:
             print(f"H3 Wrapper Error saving preview video: {e}")
 

@@ -390,15 +390,16 @@ class H3ContinuousStart:
     CATEGORY = "H3 Continuous"
     DESCRIPTION = "Clip 1: native FL2VA first/last anchors. Optional <Picture 1> is Qwen-only (no persistent ref latent), matching the working production behavior."
 
-    def build(self, clip, vae, prompt, width, height, length, first_frame, last_frame,
-              ref_image_size="match", reference_image=None, qwen_references=None):
-        # IMPORTANT: Clip 1 intentionally stays on the native FL2VA endpoint
-        # path. No continuation/runtime-patch metadata is attached here.
+def build(self, clip, vae, prompt, width, height, length, first_frame, last_frame,
+              ref_image_size="match", reference_image=None, qwen_references=None,
+              ref2v_mode=False):
+        # IMPORTANT: Clip 1 intentionally stays on the native endpoint/ref path.
+        # No continuation/runtime-patch metadata is attached here.
         latent, frame_count = _empty_av_latent(width, height, length)
 
         # Preserve the complete v1.2.x production path when called by legacy
-        # node classes. v1.3 opts into the flexible branch explicitly by passing
-        # qwen_references (including an empty list).
+        # node classes. v1.3/v1.4 opts into the flexible branch explicitly by
+        # passing qwen_references (including an empty list).
         if qwen_references is None:
             first = _resize(first_frame[:1], width, height, "disabled")
             last = _resize(last_frame[:1], width, height, "center")
@@ -407,14 +408,10 @@ class H3ContinuousStart:
                 {"resolved_frame_index": frame_count - 1, "latent": vae.encode(last)},
             ]
 
-            # Match the previously working production behavior:
-            # <Picture 1> is Qwen-only. It is NOT inserted into minimax_refs and
-            # therefore cannot act as a persistent DiT reference latent mid-clip.
             if reference_image is not None:
                 ref = _prepare_qwen_reference_image(reference_image, width, height, ref_image_size)
                 tokens = clip.tokenize(prompt, minimax_ref_items=[{"type": "image", "data": ref}])
             else:
-                # Native FL2VA presentation when no extra reference is supplied.
                 tokens = clip.tokenize(prompt, images=[first, last])
 
             cond = clip.encode_from_tokens_scheduled(tokens)
@@ -424,8 +421,32 @@ class H3ContinuousStart:
             })
             return (cond, latent)
 
-        # v1.3 flexible H3 conditioning. First and Last are independent optional
-        # temporal keyframes and also receive the first Qwen Picture ordinals.
+        # [CUSTOM PATCH: Ref2V mode]
+        # Ignore first_frame/last_frame (no minimax_keyframes). Send all connected
+        # qwen_references to BOTH Qwen (minimax_ref_items) and the DiT (minimax_refs).
+        if ref2v_mode:
+            prepared_refs = [
+                _prepare_qwen_reference_image(image, width, height, ref_image_size)
+                for image in (qwen_references or [])
+                if image is not None
+            ]
+            if prepared_refs:
+                ref_items = [{"type": "image", "data": img} for img in prepared_refs]
+                tokens = clip.tokenize(prompt, minimax_ref_items=ref_items)
+                refs = [{"kind": "image", "latent": vae.encode(img)} for img in prepared_refs]
+            else:
+                tokens = clip.tokenize(prompt)
+                refs = []
+
+            cond = clip.encode_from_tokens_scheduled(tokens)
+            if refs:
+                cond = node_helpers.conditioning_set_values(cond, {
+                    "minimax_refs": refs,
+                })
+            return (cond, latent)
+
+        # v1.3/v1.4 flexible FL2VA conditioning. First and Last are independent
+        # optional temporal keyframes and also receive the first Qwen Picture ordinals.
         keyframe_images = []
         keyframes = []
         if first_frame is not None:
@@ -1473,12 +1494,51 @@ class H3ContinuousContinueV13(H3ContinuousContinueV1):
 
 
 class H3ContinuousStartV14(H3ContinuousStartV13):
+    @classmethod
+    def INPUT_TYPES(cls):
+        base = H3ContinuousStartV13.INPUT_TYPES()
+        required = dict(base["required"])
+        # Appended at the end so existing v1.4 workflow JSON widget indices stay intact.
+        required["ref2v_mode"] = ("BOOLEAN", {
+            "default": False,
+            "tooltip": "OFF = FL2VA (First/Last frames -> minimax_keyframes, Qwen References -> Qwen-only). ON = Ref2VA (ignores First/Last frames; encodes Qwen References into minimax_refs + Qwen minimax_ref_items).",
+        })
+        return {"required": required, "optional": base["optional"]}
+
     CATEGORY = "Herrgotts H3 Infinite Continuation Suite"
     DESCRIPTION = (
-        "v1.4 Clip 1 start/conditioning. Behavior matches v1.3: optional First/Last Frames, "
-        "T2VA/I2VA/L2VA/FL2VA, auto-growing Qwen References and Picture Map. "
-        "Masked AV is used only by v1.4 continuation clips."
+        "v1.4 Clip 1 start/conditioning. Supports FL2VA (T2VA/I2VA/L2VA/FL2VA) when "
+        "ref2v_mode is OFF, and native Ref2VA (multi-image DiT + Qwen references via "
+        "qwen_reference_1..N) when ref2v_mode is ON."
     )
+
+    def build(self, clip, vae, prompt, width, height, duration, ref_image_size="match",
+              ref2v_mode=False, first_frame=None, last_frame=None,
+              qwen_reference_1=None, **kwargs):
+        qwen_entries = collect_qwen_reference_entries(qwen_reference_1, kwargs)
+        qwen_references = [image for _, image in qwen_entries]
+        qwen_indices = [index for index, _ in qwen_entries]
+        requested_frames = duration_to_requested_frames(duration)
+        frame_count, _, _ = temporal_shape(requested_frames)
+        _LOG.info(
+            "h3_continuous v1.4 (%s): duration %.3fs -> %s requested frames -> %s H3 frames (%.3fs)",
+            "Ref2V" if ref2v_mode else "FL2V",
+            float(duration), requested_frames, frame_count, frame_count / FPS,
+        )
+        cond, latent = H3ContinuousStart.build(
+            self, clip, vae, prompt, width, height, requested_frames,
+            first_frame, last_frame, ref_image_size=ref_image_size,
+            reference_image=None, qwen_references=qwen_references,
+            ref2v_mode=bool(ref2v_mode),
+        )
+        picture_map = format_picture_map(
+            first_frame=(False if ref2v_mode else first_frame is not None),
+            last_frame=(False if ref2v_mode else last_frame is not None),
+            qwen_reference_count=len(qwen_references),
+            qwen_reference_indices=qwen_indices,
+        )
+        _LOG.info("h3_continuous v1.4 picture map:\n%s", picture_map)
+        return (cond, latent, picture_map)
 
 
 class H3ContinuousContinueV14(H3ContinuousContinueV13):

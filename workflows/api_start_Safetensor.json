@@ -53,6 +53,10 @@
         3
       ],
       "ref_image_size": "match",
+      "ref2v_mode": [
+        "69",
+        17
+      ],
       "clip": [
         "2",
         0
@@ -68,6 +72,10 @@
       "last_frame": [
         "69",
         13
+      ],
+      "qwen_reference_1": [
+        "69",
+        18
       ]
     },
     "class_type": "H3ContinuousStartV14",
@@ -460,7 +468,12 @@
       "last_frame_path": "",
       "global_lora_active": false,
       "global_lora": "60sPsychadelicMovieZ_000002000.safetensors",
-      "global_lora_strength": 1
+      "global_lora_strength": 1,
+      "ref2v_mode": false,
+      "ref_image_1_path": "",
+      "ref_image_2_path": "",
+      "ref_image_3_path": "",
+      "ref_image_4_path": ""
     },
     "class_type": "H3InfinityWrapper_SettingsPayload",
     "_meta": {

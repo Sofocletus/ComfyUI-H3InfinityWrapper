@@ -21,41 +21,6 @@
       "ver": "0.45.0"
     }
   },
-  "7": {
-    "inputs": {
-      "latent_prefix": [
-        "8",
-        11
-      ],
-      "first_clip": 1,
-      "last_clip": 0,
-      "filename_prefix": [
-        "8",
-        12
-      ],
-      "video_crossfade_frames": 4,
-      "audio_crossfade_ms": 15,
-      "luminance_match": false,
-      "luminance_fade_frames": 16,
-      "max_luminance_correction_percent": 10,
-      "crf": 18,
-      "max_safe_tail_bridge_frames": 0,
-      "video_vae": [
-        "2",
-        0
-      ],
-      "audio_vae": [
-        "3",
-        0
-      ]
-    },
-    "class_type": "H3ContinuousStitchSavedChainV14",
-    "_meta": {
-      "title": "H3 Infinite - Stitch Saved Chain — Masked AV v1.4",
-      "cnr_id": "herrgotts-h3-infinite-continuation-suite",
-      "ver": "1.4.0"
-    }
-  },
   "8": {
     "inputs": {
       "prompt": "",
@@ -68,11 +33,43 @@
       "stitch_paths_json": "[]",
       "stitch_mp4_path": "",
       "latent_prefix": "",
-      "filename_prefix": ""
+      "filename_prefix": "",
+      "next_load_path": ""
     },
     "class_type": "H3InfinityWrapper_ProjectPayload",
     "_meta": {
       "title": "H3 Wrapper - Project Payload API"
+    }
+  },
+  "9": {
+    "inputs": {
+      "video_crossfade_frames": 4,
+      "audio_crossfade_ms": 4,
+      "hard_cut_audio_fade_ms": 15,
+      "luminance_match": 5,
+      "luminance_fade_frames": 18,
+      "max_luminance_correction_percent": 10,
+      "crf": 18,
+      "video_vae": [
+        "2",
+        0
+      ],
+      "audio_vae": [
+        "3",
+        0
+      ],
+      "stitch_paths_json": [
+        "8",
+        9
+      ],
+      "stitch_mp4_path": [
+        "8",
+        10
+      ]
+    },
+    "class_type": "H3InfinityWrapper_HybridStitcher",
+    "_meta": {
+      "title": "H3 Wrapper - Hybrid Stitcher"
     }
   }
 }

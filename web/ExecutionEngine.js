@@ -5,6 +5,7 @@ export function createExecutionEngine(ctx) {
     let pendingJob = null;
     let stitchQueue = [];
     let pendingShotQueue = [];
+    let pendingTakeBatch = [];
     let currentPreviewUrl = null;
 
     const setRenderingState = (active, mode = null) => {
@@ -27,6 +28,7 @@ export function createExecutionEngine(ctx) {
 
     const cancelGeneration = async () => {
         pendingShotQueue = [];
+        pendingTakeBatch = [];
         stitchQueue = [];
         pendingJob = null;
         pendingPromptId = null;
@@ -62,23 +64,28 @@ export function createExecutionEngine(ctx) {
         return true;
     };
 
-    const executeWorkflow = async (mode = null, shotIndex = 0, stitchConfig = null) => {
+    const executeWorkflow = async (mode = null, shotIndex = 0, stitchConfig = null, seedOverride = null) => {
         if (isRendering) return;
 
         const resolvedMode = stitchConfig
             ? "Stitch"
             : (mode || ctx.stateManager.detectShotMode(shotIndex));
 
-        if (!validateWorkflowSupportsMode(resolvedMode)) return;
+        if (!validateWorkflowSupportsMode(resolvedMode)) {
+            pendingTakeBatch = [];
+            pendingShotQueue = [];
+            return;
+        }
 
         ctx.components.centerPlayer?.stopPlayback?.();
         setRenderingState(true, resolvedMode === "Stitch" ? "Stitch" : "Generate");
 
         const state = ctx.stateManager.state;
         const shot = state.shots[shotIndex] || {};
+        const batchSuffix = pendingTakeBatch.length > 0 ? ` (${pendingTakeBatch.length} left)` : "";
         const statusLabel = stitchConfig
             ? `Stitching branch${String(stitchConfig.branchIndex).padStart(2, "0")}...`
-            : `Initializing ${resolvedMode} (${shot.id || `S${shotIndex + 1}`})...`;
+            : `Initializing ${resolvedMode} (${shot.id || `S${shotIndex + 1}`})${batchSuffix}...`;
         setStatus(statusLabel, "var(--h3-accent-amber)");
         clearPreview();
 
@@ -91,11 +98,25 @@ export function createExecutionEngine(ctx) {
             const frames = shot.duration_frames !== undefined ? shot.duration_frames : 124;
             const durationSec = Number((frames / 24.0).toFixed(4));
             const nextTakeNum = (shot.takes?.length || 0) + 1;
-            const shotSeed = shot.seed !== undefined ? shot.seed : 123456789;
-            const parentTake = prevShot && ctx.stateManager.hasGeneratedTake(prevShot)
+            const shotSeed = seedOverride !== null && seedOverride !== undefined
+                ? seedOverride
+                : (shot.seed !== undefined ? shot.seed : 123456789);
+
+            const usesPrev = resolvedMode === "Continue" || resolvedMode === "Bridge";
+            const usesNext = resolvedMode === "Lead" || resolvedMode === "Bridge";
+            const isRef2V = (resolvedMode === "Start" || resolvedMode === "Single") && ctx.stateManager.isRef2VModel();
+
+            const globalRefActive = Boolean(global.global_ref_enabled);
+            const mergedRefs = [1, 2, 3, 4].map((idx) => {
+                const gVal = globalRefActive ? (global[`global_ref_${idx}`] || "") : "";
+                const sVal = shot[`ref_image_${idx}`] || "";
+                return gVal || sVal;
+            });
+
+            const parentTake = usesPrev && prevShot && ctx.stateManager.hasGeneratedTake(prevShot)
                 ? prevShot.approved_take
                 : null;
-            const nextTake = nextShot && ctx.stateManager.hasGeneratedTake(nextShot)
+            const nextTake = usesNext && nextShot && ctx.stateManager.hasGeneratedTake(nextShot)
                 ? nextShot.approved_take
                 : null;
 
@@ -114,9 +135,9 @@ export function createExecutionEngine(ctx) {
                 shot_id: shot.id,
                 shot_number: shotIndex + 1,
                 take_number: nextTakeNum,
-                prev_shot_id: prevShot ? prevShot.id : null,
+                prev_shot_id: usesPrev && prevShot ? prevShot.id : null,
                 prev_take_number: parentTake,
-                next_shot_id: nextShot ? nextShot.id : null,
+                next_shot_id: usesNext && nextShot ? nextShot.id : null,
                 next_take_number: nextTake,
                 width: global.width,
                 height: global.height,
@@ -139,8 +160,19 @@ export function createExecutionEngine(ctx) {
                 active_2: shot.active_2 || false,
                 lora_2: shot.lora_2 || "",
                 lora_strength_2: shot.lora_strength_2 !== undefined ? shot.lora_strength_2 : 0,
-                first_frame_path: shot.first_frame || "",
-                last_frame_path: shot.last_frame || "",
+                first_frame_path: isRef2V ? "" : (shot.first_frame || ""),
+                last_frame_path: isRef2V ? "" : (shot.last_frame || ""),
+                ref2v_mode: isRef2V,
+                ref_image_1_path: isRef2V ? mergedRefs[0] : "",
+                ref_image_2_path: isRef2V ? mergedRefs[1] : "",
+                ref_image_3_path: isRef2V ? mergedRefs[2] : "",
+                ref_image_4_path: isRef2V ? mergedRefs[3] : "",
+                recorded_first_frame: shot.first_frame || "",
+                recorded_last_frame: shot.last_frame || "",
+                recorded_ref_image_1: mergedRefs[0],
+                recorded_ref_image_2: mergedRefs[1],
+                recorded_ref_image_3: mergedRefs[2],
+                recorded_ref_image_4: mergedRefs[3],
                 client_id: ctx.api.clientId
             };
 
@@ -160,10 +192,12 @@ export function createExecutionEngine(ctx) {
 
             pendingJob = {
                 mode: resolvedMode,
+                ref2v_mode: isRef2V,
                 shotIndex,
                 takeNum: nextTakeNum,
                 parentTake,
                 nextTake,
+                join_from_prev: usesPrev,
                 prompt: shotPrompt,
                 seed: shotSeed,
                 duration_frames: frames,
@@ -175,6 +209,10 @@ export function createExecutionEngine(ctx) {
                 lora_strength_2: shot.lora_strength_2 !== undefined ? shot.lora_strength_2 : 0,
                 first_frame: shot.first_frame || "",
                 last_frame: shot.last_frame || "",
+                ref_image_1: mergedRefs[0],
+                ref_image_2: mergedRefs[1],
+                ref_image_3: mergedRefs[2],
+                ref_image_4: mergedRefs[3],
                 preview_path: result.absolute_preview_path,
                 project_name: state.project_name
             };
@@ -195,6 +233,7 @@ export function createExecutionEngine(ctx) {
             pendingJob = null;
             stitchQueue = [];
             pendingShotQueue = [];
+            pendingTakeBatch = [];
             setRenderingState(false, null);
             clearPreview();
         }
@@ -213,6 +252,25 @@ export function createExecutionEngine(ctx) {
         const firstIdx = pendingShotQueue.shift();
         ctx.stateManager.selectShot(firstIdx);
         executeWorkflow(null, firstIdx);
+    };
+
+    const executeTakeBatch = (mode, shotIndex, count) => {
+        const total = Math.min(8, Math.max(1, parseInt(count, 10) || 1));
+        if (isRendering || shotIndex < 0) return;
+        if (total === 1) {
+            executeWorkflow(mode, shotIndex);
+            return;
+        }
+
+        pendingTakeBatch = [];
+        for (let i = 1; i < total; i++) {
+            pendingTakeBatch.push({
+                mode,
+                shotIndex,
+                seed: Math.floor(Math.random() * 1000000000)
+            });
+        }
+        executeWorkflow(mode, shotIndex, null, null);
     };
 
     // ==========================================
@@ -254,6 +312,7 @@ export function createExecutionEngine(ctx) {
             pendingJob = null;
             stitchQueue = [];
             pendingShotQueue = [];
+            pendingTakeBatch = [];
             setRenderingState(false, null);
             clearPreview();
             setStatus("Execution Error", "var(--h3-accent-red)");
@@ -293,13 +352,15 @@ export function createExecutionEngine(ctx) {
                     }
                 } else {
                     const shot = ctx.stateManager.state.shots[finishedJob.shotIndex];
-					if (shot) {
+                    if (shot) {
                         ctx.stateManager.selectShot(finishedJob.shotIndex);
                         ctx.stateManager.addTakeToActiveShot({
                             take_num: finishedJob.takeNum,
                             mode: finishedJob.mode,
+                            ref2v_mode: finishedJob.ref2v_mode,
                             parent_take: finishedJob.parentTake,
                             next_take: finishedJob.nextTake,
+                            join_from_prev: finishedJob.join_from_prev,
                             preview_path: finishedJob.preview_path,
                             prompt: finishedJob.prompt,
                             seed: finishedJob.seed,
@@ -311,11 +372,20 @@ export function createExecutionEngine(ctx) {
                             lora_2: finishedJob.lora_2,
                             lora_strength_2: finishedJob.lora_strength_2,
                             first_frame: finishedJob.first_frame,
-                            last_frame: finishedJob.last_frame
+                            last_frame: finishedJob.last_frame,
+                            ref_image_1: finishedJob.ref_image_1,
+                            ref_image_2: finishedJob.ref_image_2,
+                            ref_image_3: finishedJob.ref_image_3,
+                            ref_image_4: finishedJob.ref_image_4
                         });
 
-                        if (needsApproval) {
-                            await ctx.stateManager.syncTakeApproval(finishedJob.shotIndex, finishedJob.takeNum);
+                        await ctx.stateManager.syncTakeApproval(finishedJob.shotIndex, finishedJob.takeNum);
+
+                        if (pendingTakeBatch.length > 0) {
+                            const nextTake = pendingTakeBatch.shift();
+                            isRendering = false;
+                            setTimeout(() => executeWorkflow(nextTake.mode, nextTake.shotIndex, null, nextTake.seed), 300);
+                            return;
                         }
 
                         if (pendingShotQueue.length > 0) {
@@ -335,6 +405,7 @@ export function createExecutionEngine(ctx) {
                             ctx.components.centerPlayer?.loadVideoPath?.(finishedJob.preview_path, finishedJob.shotIndex, startOffset, false, true);
                         }, 500);
                     } else {
+                        pendingTakeBatch = [];
                         setRenderingState(false, null);
                     }
                 }
@@ -352,6 +423,7 @@ export function createExecutionEngine(ctx) {
         executeWorkflow,
         executeStitchQueue,
         executePendingQueue,
+        executeTakeBatch,
         cancelGeneration,
         getIsRendering: () => isRendering,
         getRenderingMode: () => renderingMode

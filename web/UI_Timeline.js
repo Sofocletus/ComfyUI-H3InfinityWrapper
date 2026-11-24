@@ -1,3 +1,6 @@
+import { EVENTS } from "./StateManager.js";
+import { getEdgesBetween } from "./UI_BranchGraph.js";
+
 export function createTimeline(ctx) {
     const MIN_SHOT_WIDTH = 24;
     const FPS = 24.0;
@@ -6,6 +9,7 @@ export function createTimeline(ctx) {
 
     const MODE_COLORS = {
         Start:    { border: "#4fd1ff", bg: "rgba(79, 209, 255, 0.14)",  bgSel: "rgba(79, 209, 255, 0.28)",  text: "#82deff" },
+        Single:   { border: "#feca57", bg: "rgba(254, 202, 87, 0.14)",  bgSel: "rgba(254, 202, 87, 0.28)",  text: "#ffe082" },
         Continue: { border: "#2ed573", bg: "rgba(46, 213, 115, 0.12)",  bgSel: "rgba(46, 213, 115, 0.26)",  text: "#7bed9f" },
         Lead:     { border: "#ff9f43", bg: "rgba(255, 159, 67, 0.14)",  bgSel: "rgba(255, 159, 67, 0.28)",  text: "#ffbe76" },
         Bridge:   { border: "#a29bfe", bg: "rgba(162, 155, 254, 0.14)", bgSel: "rgba(162, 155, 254, 0.28)", text: "#c8c2ff" }
@@ -79,24 +83,9 @@ export function createTimeline(ctx) {
 
     const playhead = document.createElement("div");
     playhead.className = "h3-playhead";
-    playhead.style.position = "absolute";
-    playhead.style.top = "0";
-    playhead.style.height = "44px";
-    playhead.style.left = "0px";
-    playhead.style.width = "2px";
-    playhead.style.background = "var(--h3-accent-red, #e53935)";
-    playhead.style.zIndex = "20";
-    playhead.style.pointerEvents = "none";
 
     const playheadCap = document.createElement("div");
     playheadCap.className = "h3-playhead-cap";
-    playheadCap.style.position = "absolute";
-    playheadCap.style.top = "0";
-    playheadCap.style.left = "-5px";
-    playheadCap.style.width = "12px";
-    playheadCap.style.height = "10px";
-    playheadCap.style.background = "var(--h3-accent-red, #e53935)";
-    playheadCap.style.clipPath = "polygon(0 0, 100% 0, 50% 100%)";
     playhead.appendChild(playheadCap);
 
     contentArea.appendChild(ruler);
@@ -128,6 +117,21 @@ export function createTimeline(ctx) {
             if (s && s.takes && s.takes.length > 0) lastPlayableIndex = i;
         });
 
+        const isSeamContinuous = (leftIdx, rightIdx) => {
+            if (leftIdx < 0 || rightIdx >= shots.length) return false;
+            const leftShot = shots[leftIdx];
+            const rightShot = shots[rightIdx];
+            const leftTake = ctx.stateManager.getActiveTake(leftShot);
+            const rightTake = ctx.stateManager.getActiveTake(rightShot);
+            if (leftTake && rightTake) {
+                const edges = getEdgesBetween(shots, leftIdx, rightIdx);
+                return edges.some(e => e.fromTake === leftTake.take_num && e.toTake === rightTake.take_num);
+            }
+            const rightMode = ctx.stateManager.getShotDisplayMode(rightIdx);
+            const leftMode = ctx.stateManager.getShotDisplayMode(leftIdx);
+            return rightMode === "Continue" || rightMode === "Bridge" || leftMode === "Lead" || leftMode === "Bridge";
+        };
+
         let cursorTime = 0;
         let cursorX = 0;
         const layout = [];
@@ -135,23 +139,25 @@ export function createTimeline(ctx) {
         shots.forEach((shot, index) => {
             const mode = ctx.stateManager.getShotDisplayMode(index);
             const requestedFrames = shot && shot.duration_frames !== undefined ? shot.duration_frames : 124;
-            const hasNextPlayable = index < lastPlayableIndex;
+            const continuousToNext = index < lastPlayableIndex && isSeamContinuous(index, index + 1);
+            const isHardCutFromPrev = index > 0 && !isSeamContinuous(index - 1, index);
 
             let headTrimFrames = 0;
             let tailTrimFrames = 0;
 
             if (mode === "Continue") {
                 headTrimFrames = ctxFrames;
-                tailTrimFrames = hasNextPlayable ? TAIL_TRIM_FRAMES : 0;
+                tailTrimFrames = continuousToNext ? TAIL_TRIM_FRAMES : 0;
             } else if (mode === "Lead") {
                 headTrimFrames = 0;
-                tailTrimFrames = hasNextPlayable ? insertCtxFrames : 0;
+                tailTrimFrames = continuousToNext ? insertCtxFrames : 0;
             } else if (mode === "Bridge") {
                 headTrimFrames = insertCtxFrames;
-                tailTrimFrames = hasNextPlayable ? insertCtxFrames : 0;
+                tailTrimFrames = continuousToNext ? insertCtxFrames : 0;
             } else {
+                // Start or Single
                 headTrimFrames = 0;
-                tailTrimFrames = hasNextPlayable ? TAIL_TRIM_FRAMES : 0;
+                tailTrimFrames = continuousToNext ? TAIL_TRIM_FRAMES : 0;
             }
 
             const totalVideoFrames = requestedFrames;
@@ -188,6 +194,7 @@ export function createTimeline(ctx) {
                 headTrimSec,
                 tailTrimSec,
                 clipEndSec,
+                isHardCutFromPrev,
                 startTime: cursorTime,
                 endTime: cursorTime + duration,
                 duration,
@@ -359,6 +366,10 @@ export function createTimeline(ctx) {
                 block.style.opacity = "0.75";
             }
 
+            if (item.isHardCutFromPrev) {
+                block.style.borderLeft = "2px solid var(--h3-accent-red, #e53935)";
+            }
+
             const title = document.createElement("div");
             title.style.fontSize = "10px";
             title.style.fontWeight = isSelected ? "700" : "500";
@@ -422,15 +433,17 @@ export function createTimeline(ctx) {
 
     ctx.stateManager.subscribe((event) => {
         if ([
-            "PROJECT_LOADED",
-            "GLOBAL_UPDATED",
-            "SHOT_ADDED",
-            "SHOT_DELETED",
-            "SHOT_SELECTED",
-            "SHOT_UPDATED",
-            "TAKE_ADDED",
-            "TAKE_APPROVED",
-            "BRANCH_SELECTED"
+            EVENTS.PROJECT_LOADED,
+            EVENTS.GLOBAL_UPDATED,
+            EVENTS.SHOT_ADDED,
+            EVENTS.SHOT_DELETED,
+            EVENTS.HISTORY_RESTORED,
+            EVENTS.SHOT_SELECTED,
+            EVENTS.SHOT_UPDATED,
+            EVENTS.TAKE_ADDED,
+            EVENTS.TAKE_APPROVED,
+            EVENTS.TAKE_DELETED,
+            EVENTS.BRANCH_SELECTED
         ].includes(event)) {
             renderTimeline();
         }

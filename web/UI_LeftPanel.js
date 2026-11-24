@@ -1,4 +1,5 @@
 import * as Icons from "./icons.js";
+import { EVENTS } from "./StateManager.js";
 import { createSearchableSelect } from "./UI_SearchableSelect.js";
 
 const ASPECT_RATIOS = ["1:1", "4:3", "3:4", "16:9", "9:16"];
@@ -98,7 +99,7 @@ export function createLeftPanel(ctx) {
     modelRow.appendChild(modelSelect.element);
     globalFrame.appendChild(modelRow);
 
-    // Sampler & Scheduler (Same Row, half-width dropdowns)
+    // Sampler & Scheduler
     const sampSchedRow = document.createElement("div");
     sampSchedRow.className = "h3-row";
     sampSchedRow.style.gap = "6px";
@@ -123,7 +124,7 @@ export function createLeftPanel(ctx) {
     sampSchedRow.appendChild(schedSelect);
     globalFrame.appendChild(sampSchedRow);
 
-    // Steps & Context Frames (Same Row, no slider for Steps)
+    // Steps & Context Frames
     const stepsCtxRow = document.createElement("div");
     stepsCtxRow.className = "h3-row";
     stepsCtxRow.style.gap = "6px";
@@ -193,7 +194,7 @@ export function createLeftPanel(ctx) {
     globalFrame.appendChild(stepsCtxRow);
 
     // ==========================================
-    // RESOLUTION PRESETS (Above Width/Height Controls)
+    // RESOLUTION PRESETS
     // ==========================================
     const presetRow = document.createElement("div");
     presetRow.className = "h3-row";
@@ -267,7 +268,7 @@ export function createLeftPanel(ctx) {
     presetRow.appendChild(resSelect);
     globalFrame.appendChild(presetRow);
 
-    // Dimensions: Width [input] Height [input] [Link Icon]
+    // Dimensions
     let isAspectLocked = true;
     let lockedRatio = 864 / 480;
 
@@ -367,7 +368,7 @@ export function createLeftPanel(ctx) {
     populateResolutions("16:9", "0.4");
 
     // ==========================================
-    // GLOBAL LoRA PANEL (Locked after Shot 1)
+    // GLOBAL LoRA PANEL
     // ==========================================
     const gLoraPanel = document.createElement("div");
     gLoraPanel.style.display = "flex";
@@ -440,7 +441,7 @@ export function createLeftPanel(ctx) {
     globalFrame.appendChild(gLoraPanel);
 
     // ==========================================
-    // GLOBAL PROMPT (Always Active, Auto-enabled when non-empty)
+    // GLOBAL REFERENCES + GLOBAL PROMPT
     // ==========================================
     const gpWrapper = document.createElement("div");
     gpWrapper.style.display = "flex";
@@ -450,11 +451,145 @@ export function createLeftPanel(ctx) {
     gpWrapper.style.paddingTop = "6px";
     gpWrapper.style.borderTop = "1px solid var(--h3-border-subtle)";
 
+    const gRefPanel = document.createElement("div");
+    gRefPanel.style.display = "flex";
+    gRefPanel.style.flexDirection = "column";
+    gRefPanel.style.gap = "4px";
+    gRefPanel.style.padding = "4px";
+    gRefPanel.style.border = "1px solid var(--h3-border-subtle)";
+    gRefPanel.style.borderRadius = "4px";
+
+    const gRefHeader = document.createElement("div");
+    gRefHeader.className = "h3-row";
+    gRefHeader.style.gap = "4px";
+
+    const gRefCheck = document.createElement("input");
+    gRefCheck.type = "checkbox";
+    gRefCheck.addEventListener("mousedown", preventEvents);
+    gRefCheck.addEventListener("change", (e) => {
+        ctx.stateManager.updateGlobal("global_ref_enabled", e.target.checked);
+    });
+
+    const gRefLbl = document.createElement("span");
+    gRefLbl.className = "h3-label";
+    gRefLbl.style.minWidth = "auto";
+    gRefLbl.style.whiteSpace = "nowrap";
+    gRefLbl.style.color = "var(--h3-text-secondary)";
+    gRefLbl.innerText = "Global References";
+
+    gRefHeader.appendChild(gRefCheck);
+    gRefHeader.appendChild(gRefLbl);
+    gRefPanel.appendChild(gRefHeader);
+
+    const createGlobalRefBox = (num) => {
+        const stateKey = `global_ref_${num}`;
+        const label = `Pic ${num}`;
+
+        const zone = document.createElement("div");
+        zone.className = "h3-dnd-zone";
+        zone.style.flex = "1 1 0";
+        zone.style.minWidth = "0";
+        zone.style.aspectRatio = "1 / 1";
+        zone.style.height = "auto";
+        zone.style.minHeight = "0";
+
+        const text = document.createElement("span");
+        text.innerText = label;
+        text.style.fontSize = "8px";
+        zone.appendChild(text);
+
+        const imgPreview = document.createElement("img");
+        imgPreview.className = "h3-dnd-image-preview";
+        imgPreview.style.display = "none";
+        zone.appendChild(imgPreview);
+
+        zone.addEventListener("dragover", (e) => {
+            if (zone.dataset.locked === "true") return;
+            e.preventDefault();
+            zone.classList.add("dragover");
+        });
+        zone.addEventListener("dragleave", (e) => {
+            e.preventDefault();
+            zone.classList.remove("dragover");
+        });
+        zone.addEventListener("drop", (e) => {
+            if (zone.dataset.locked === "true") return;
+            e.preventDefault();
+            zone.classList.remove("dragover");
+            const file = e.dataTransfer.files[0];
+            if (!file || !file.type.startsWith("image/")) return;
+
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                const b64 = ev.target.result;
+                text.innerText = "...";
+                try {
+                    const resp = await fetch("/h3_wrapper/upload_image", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            project_name: ctx.stateManager.state.project_name,
+                            filename: file.name,
+                            image_data: b64
+                        })
+                    });
+                    const resData = await resp.json();
+                    if (resData.status === "success") {
+                        ctx.stateManager.updateGlobal(stateKey, resData.file_path);
+                        text.style.display = "none";
+                        imgPreview.src = b64;
+                        imgPreview.style.display = "block";
+                    }
+                } catch (err) {
+                    text.innerText = "Err";
+                    console.error(err);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+
+        const clearBtn = document.createElement("button");
+        clearBtn.className = "h3-icon-btn small danger";
+        clearBtn.innerHTML = Icons.ICON_TRASH;
+        clearBtn.style.position = "absolute";
+        clearBtn.style.top = "2px";
+        clearBtn.style.right = "2px";
+        clearBtn.style.display = "none";
+        clearBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (zone.dataset.locked === "true") return;
+            ctx.stateManager.updateGlobal(stateKey, "");
+            imgPreview.src = "";
+            imgPreview.style.display = "none";
+            text.style.display = "inline";
+            text.innerText = label;
+            clearBtn.style.display = "none";
+        });
+        zone.appendChild(clearBtn);
+
+        return { zone, imgPreview, text, clearBtn, defaultLabel: label, stateKey };
+    };
+
+    const gRefSingleRow = document.createElement("div");
+    gRefSingleRow.className = "h3-row";
+    gRefSingleRow.style.gap = "4px";
+    gRefSingleRow.style.alignItems = "stretch";
+
+    const gRefs = [
+        createGlobalRefBox(1),
+        createGlobalRefBox(2),
+        createGlobalRefBox(3),
+        createGlobalRefBox(4)
+    ];
+
+    gRefs.forEach(ref => gRefSingleRow.appendChild(ref.zone));
+    gRefPanel.appendChild(gRefSingleRow);
+
     const gpInput = document.createElement("textarea");
     gpInput.className = "h3-input";
     gpInput.placeholder = "Global Prompt, applies to all shots in the timeline";
-    gpInput.style.minHeight = "44px";
-    gpInput.style.height = "160px";
+    gpInput.style.minHeight = "36px";
+    gpInput.style.height = "120px";
     gpInput.addEventListener("mousedown", preventEvents);
     gpInput.addEventListener("keydown", preventEvents);
     gpInput.addEventListener("change", (e) => {
@@ -463,30 +598,25 @@ export function createLeftPanel(ctx) {
         ctx.stateManager.updateGlobal("global_prompt_enabled", val.trim().length > 0);
     });
 
+    gpWrapper.appendChild(gRefPanel);
     gpWrapper.appendChild(gpInput);
     globalFrame.appendChild(gpWrapper);
 
     leftCol.appendChild(globalFrame);
 
     // ==========================================
-    // SYNC & SHOT-1 LOCK LOGIC
+    // SYNC & SELECTIVE LOCK LOGIC
     // ==========================================
-    const lockedControls = [
-        wfSelect, samplerSelect, schedSelect,
-        stepsNum, ctxSelect, ratioSelect, resSelect,
-        wInput, hInput, linkBtn,
-        gLoraCheck, gLoraSlider, gLoraNum
+    const firstShotOnlyControls = [
+        ratioSelect, resSelect, wInput, hInput, linkBtn
     ];
 
     const updateShotLockState = () => {
         const isLocked = ctx.stateManager.selectedShotIndex > 0;
-        lockedControls.forEach(el => {
+        firstShotOnlyControls.forEach(el => {
             el.disabled = isLocked;
             el.style.opacity = isLocked ? "0.45" : "1";
         });
-        modelSelect.setDisabled(isLocked);
-        gLoraSelect.setDisabled(isLocked);
-        gLoraPanel.style.opacity = isLocked ? "0.55" : "1";
     };
 
     const populateSelect = (sel, items, currentVal) => {
@@ -538,6 +668,54 @@ export function createLeftPanel(ctx) {
         gLoraSelect.setOptions(loraList, g.global_lora || "None");
     };
 
+    const syncGlobalRefsUI = () => {
+        const isRef2V = ctx.stateManager.isRef2VModel();
+        const g = ctx.stateManager.state?.global || {};
+        const shot = ctx.stateManager.getActiveShot() || {};
+        const globalToggleOn = isRef2V && Boolean(g.global_ref_enabled);
+
+        gRefCheck.checked = Boolean(g.global_ref_enabled);
+        gRefCheck.disabled = !isRef2V;
+        gRefHeader.style.opacity = isRef2V ? "1" : "0.45";
+
+        gRefs.forEach((ref, idx) => {
+            const shotKey = `ref_image_${idx + 1}`;
+            const directPath = g[ref.stateKey] || "";
+            const shotPath = isRef2V ? (shot[shotKey] || "") : "";
+            const displayPath = directPath || (globalToggleOn ? shotPath : "");
+            const isMirrored = !directPath && globalToggleOn && Boolean(shotPath);
+            const locked = !globalToggleOn || isMirrored;
+
+            ref.zone.dataset.locked = locked ? "true" : "false";
+            ref.zone.style.cursor = locked ? "not-allowed" : "pointer";
+            ref.zone.style.borderStyle = isMirrored ? "dashed" : "";
+            ref.zone.style.opacity = !isRef2V ? "0.45" : "1";
+
+            if (displayPath) {
+                ref.text.style.display = "none";
+                ref.imgPreview.style.display = "block";
+                ref.imgPreview.src = `/h3_wrapper/view_media?path=${encodeURIComponent(displayPath)}&t=${Date.now()}`;
+                if (isMirrored) {
+                    ref.imgPreview.style.opacity = "0.4";
+                    ref.imgPreview.style.filter = "grayscale(45%) brightness(0.85)";
+                } else {
+                    ref.imgPreview.style.opacity = "1";
+                    ref.imgPreview.style.filter = "none";
+                }
+                ref.clearBtn.style.display = directPath && globalToggleOn ? "block" : "none";
+            } else {
+                ref.text.style.display = "inline";
+                ref.text.innerText = ref.defaultLabel;
+                ref.text.style.opacity = locked ? "0.45" : "1";
+                ref.imgPreview.style.display = "none";
+                ref.imgPreview.src = "";
+                ref.imgPreview.style.opacity = "1";
+                ref.imgPreview.style.filter = "none";
+                ref.clearBtn.style.display = "none";
+            }
+        });
+    };
+
     const syncUI = () => {
         const g = ctx.stateManager.state.global;
 
@@ -571,16 +749,24 @@ export function createLeftPanel(ctx) {
 
         gpInput.value = g.global_prompt || "";
         updateShotLockState();
+        syncGlobalRefsUI();
     };
 
     ctx.stateManager.subscribe((event) => {
-        if (event === "OPTIONS_LOADED") {
+        if (event === EVENTS.OPTIONS_LOADED) {
             syncOptions();
             syncUI();
-        } else if (["PROJECT_LOADED", "GLOBAL_UPDATED"].includes(event)) {
+        } else if ([
+            EVENTS.PROJECT_LOADED,
+            EVENTS.GLOBAL_UPDATED,
+            EVENTS.SHOT_SELECTED,
+            EVENTS.SHOT_UPDATED,
+            EVENTS.SHOT_ADDED,
+            EVENTS.SHOT_DELETED,
+            EVENTS.HISTORY_RESTORED,
+            EVENTS.BRANCH_SELECTED
+        ].includes(event)) {
             syncUI();
-        } else if (["SHOT_SELECTED", "SHOT_ADDED", "SHOT_DELETED", "BRANCH_SELECTED"].includes(event)) {
-            updateShotLockState();
         }
     });
 

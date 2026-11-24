@@ -17,9 +17,9 @@ Type or paste a folder path into the Project text input at the top-center of the
 
 ### Use guideline
 - Select the workflow you want to use, workflows are stored in custom_nodes/ComfyUI-H3InfiniteWrapper/, the Project Manager uses 5 workflows, api_bridge, api_continue, api_lead, api_start and api_stitch.
-    The node reads the prefix of each workflow and dynamically loads and executes the correct workflow depending on the generation mode, the workflows without a prefix appear as the "Default" workflow.
-    If you want to create your own workflow you must create a version of each of the four types (bridge, continue, lead and start) and give each one the same prefix in the form of "_customName", for example api_bridge_example, api_continue_example, api_lead_example, api_start_example; it will appear as "Example" in the workflows list.
-    When you save your own workflows use the File>Export(API) method.
+The node reads the prefix of each workflow and dynamically loads and executes the correct workflow depending on the generation mode, the workflows without a prefix appear as the "Default" workflow.
+If you want to create your own workflow you must create a version of each of the four types (bridge, continue, lead and start) and give each one the same prefix in the form of "_customName", for example api_bridge_example, api_continue_example, api_lead_example, api_start_example; it will appear as "Example" in the workflows list.
+When you save your own workflows use the File>Export(API) method.
 - Select the Minimax model you want to use, note that the API workflow  H3 Wrapper - Settings Payload API has outputs for UNET_MODEL and DIFFUSION_MODEL, use the first one with a GGUF model loader and the second for safetensors models, the Project Manager will then only show you one or the other according to the API workflow's choice. *Do not mix GGUF and safetensors models in the workflows*.
 - Select Sampler, Scheduler, steps, the video size and Global LoRA if you want to use it (it applies to all shots when generating), don't change this settings between shots.
 - You can set a Global Prompt that will remain active for every shot you generate, you can change it for different shots.
@@ -32,6 +32,15 @@ Type or paste a folder path into the Project text input at the top-center of the
 - You can Ctrl + Right click to enable/disable takes to build the branch you want to stitch, you can stitch multiple branches at the same time with the "All Branches" option enabled.
 - All files are saved in the project folder, you will see folders with a date and time folder name, each one is a Shot as shown in the Project Manager, inside each Shot folder you can find the individual Take folders, containing a video preview, the AV latent and a take_data.json.
 - Stitched branches are saved in the project's root folder.
+
+Multi-Mode Gallery Panel
+The lower gallery strip now features a three-tab switcher (Takes, Reference Images, and Clips) on the left info panel:
+
+Takes Tab: Displays generated takes for the active shot with a top-right delete button per thumbnail and a bottom lineage bar showing linked previous/next takes alongside the active take label.
+
+Reference Images Tab: Lists images from <project>/referenceImages/ with quick-assign buttons (G for the first open Global Reference slot and S for the first open Shot Reference slot).
+
+Clips Tab: Supports dropping video clips into <project>/videoClips/, running conforming via workflows/api_video_conform.json (archiving originals under videoClips/original/ and warning on short clips < 39 frames), and inserting conformed clips before or after the selected shot (<Add / Add>) as a new Take_001 entry.
 
 ### Generation modes supported
 The Project Manager will automatically select the generation mode according to the position of the shot you create or re-generate.

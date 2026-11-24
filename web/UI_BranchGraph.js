@@ -98,11 +98,17 @@ export function getEdgesBetween(shots, leftIdx, rightIdx) {
 }
 
 export function getAllFullBranches(shots) {
+    const playableIndices = [];
+    shots.forEach((shot, idx) => {
+        if (shot && shot.takes && shot.takes.length > 0) playableIndices.push(idx);
+    });
+    if (playableIndices.length === 0) return [];
+
     const incoming = new Map();
     const outgoing = new Map();
 
-    shots.forEach((shot, sIdx) => {
-        (shot.takes || []).forEach((take) => {
+    playableIndices.forEach((sIdx) => {
+        (shots[sIdx].takes || []).forEach((take) => {
             const key = `${sIdx}:${take.take_num}`;
             incoming.set(key, []);
             outgoing.set(key, []);
@@ -112,32 +118,54 @@ export function getAllFullBranches(shots) {
     for (let sIdx = 0; sIdx < shots.length - 1; sIdx++) {
         const edges = getEdgesBetween(shots, sIdx, sIdx + 1);
         edges.forEach(({ fromTake, toTake }) => {
-            const fromKey = `${sIdx}:${fromTake}`;
-            const toKey = `${sIdx + 1}:${toTake}`;
-            outgoing.get(fromKey)?.push({ sIdx: sIdx + 1, takeNum: toTake });
-            incoming.get(toKey)?.push({ sIdx, takeNum: fromTake });
+            outgoing.get(`${sIdx}:${fromTake}`)?.push({ sIdx: sIdx + 1, takeNum: toTake });
+            incoming.get(`${sIdx + 1}:${toTake}`)?.push({ sIdx, takeNum: fromTake });
         });
     }
 
     const branches = [];
-    const dfs = (sIdx, takeNum, path) => {
+    const dfs = (pos, takeNum, joinFromPrev, path) => {
+        const sIdx = playableIndices[pos];
         const shot = shots[sIdx];
-        const nextPath = [...path, { shot: sIdx + 1, shot_id: shot.id, take: takeNum }];
-        const children = outgoing.get(`${sIdx}:${takeNum}`) || [];
-        if (children.length === 0) {
+        const nextPath = [
+            ...path,
+            { shot: sIdx + 1, shot_id: shot.id, take: takeNum, join_from_prev: joinFromPrev }
+        ];
+
+        if (pos === playableIndices.length - 1) {
             branches.push({ branchIndex: branches.length + 1, takes: nextPath });
             return;
         }
-        children.forEach((c) => dfs(c.sIdx, c.takeNum, nextPath));
+
+        const nextPos = pos + 1;
+        const nextSIdx = playableIndices[nextPos];
+        const linkedChildren = (nextSIdx === sIdx + 1)
+            ? (outgoing.get(`${sIdx}:${takeNum}`) || [])
+            : [];
+
+        const unlinkedNextTakes = (shots[nextSIdx].takes || []).filter((t) => {
+            const inc = incoming.get(`${nextSIdx}:${t.take_num}`) || [];
+            return inc.length === 0;
+        });
+
+        let branched = false;
+        linkedChildren.forEach((c) => {
+            branched = true;
+            dfs(nextPos, c.takeNum, true, nextPath);
+        });
+        unlinkedNextTakes.forEach((t) => {
+            branched = true;
+            dfs(nextPos, t.take_num, false, nextPath);
+        });
+
+        if (!branched) {
+            branches.push({ branchIndex: branches.length + 1, takes: nextPath });
+        }
     };
 
-    shots.forEach((shot, sIdx) => {
-        (shot.takes || []).forEach((take) => {
-            const key = `${sIdx}:${take.take_num}`;
-            if ((incoming.get(key) || []).length === 0) {
-                dfs(sIdx, take.take_num, []);
-            }
-        });
+    const firstSIdx = playableIndices[0];
+    (shots[firstSIdx].takes || []).forEach((take) => {
+        dfs(0, take.take_num, false, []);
     });
 
     return branches;
@@ -392,6 +420,33 @@ export function createBranchGraph(ctx) {
 
                 svg.appendChild(path);
             });
+
+            // Draw dashed hard-cut lines for unlinked takes on the active timeline path
+            const activePrev = prevShot?.approved_take;
+            const activeCurr = shot?.approved_take;
+            const hasActiveEdge = edges.some(e => e.fromTake === activePrev && e.toTake === activeCurr);
+            if (!hasActiveEdge && activePrev !== null && activePrev !== undefined && activeCurr !== null && activeCurr !== undefined) {
+                const parentEl = nodeElements.get(`${sIdx - 1}:${activePrev}`);
+                const childEl = nodeElements.get(`${sIdx}:${activeCurr}`);
+                if (parentEl && childEl) {
+                    const pRect = parentEl.getBoundingClientRect();
+                    const cRect = childEl.getBoundingClientRect();
+                    const x1 = (pRect.right - canvasRect.left) / scaleX;
+                    const y1 = (pRect.top + pRect.height / 2 - canvasRect.top) / scaleY;
+                    const x2 = (cRect.left - canvasRect.left) / scaleX;
+                    const y2 = (cRect.top + cRect.height / 2 - canvasRect.top) / scaleY;
+                    const midX = (x1 + x2) / 2;
+
+                    const cutPath = document.createElementNS(svgNS, "path");
+                    cutPath.setAttribute("d", `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`);
+                    cutPath.setAttribute("fill", "none");
+                    cutPath.setAttribute("stroke", "var(--h3-accent-red, #e53935)");
+                    cutPath.setAttribute("stroke-width", "1.4");
+                    cutPath.setAttribute("stroke-dasharray", "3,3");
+                    cutPath.setAttribute("opacity", sIdx < visibleCount ? "0.85" : "0.35");
+                    svg.appendChild(cutPath);
+                }
+            }
         }
     };
 

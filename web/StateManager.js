@@ -54,7 +54,12 @@ export class H3StateManager {
                 global_lora: "None",
                 global_lora_strength: 1.0,
                 global_prompt_enabled: false,
-                global_prompt: ""
+                global_prompt: "",
+                global_ref_enabled: false,
+                global_ref_1: "",
+                global_ref_2: "",
+                global_ref_3: "",
+                global_ref_4: ""
             },
             shots: [],
             history: []
@@ -72,6 +77,24 @@ export class H3StateManager {
 
     notify(eventType = EVENTS.STATE_UPDATED, payload = null) {
         this.listeners.forEach(cb => cb(eventType, this, payload));
+    }
+
+    // --- Model Variant Detection ("ref2va" vs "flf2va") ---
+    getActiveModelName() {
+        const g = this.state?.global || {};
+        const wfName = g.workflow || "Default";
+        const match = (this.options?.workflows || []).find(w => w.name === wfName);
+        const modelType = match ? match.model_type : "diffusion";
+        return modelType === "unet" ? (g.unet_model || "") : (g.diffusion_model || "");
+    }
+
+    isRef2VModel() {
+        const modelName = this.getActiveModelName().toLowerCase();
+        return modelName.includes("ref2va");
+    }
+
+    getModelVariantLabel() {
+        return this.isRef2VModel() ? "REF2VA" : "FLF2VA";
     }
 
     // --- Non-Destructive Timeline History (Last 3 Structural Changes) ---
@@ -315,9 +338,21 @@ export class H3StateManager {
                 if (this.state.global.global_prompt === undefined) {
                     this.state.global.global_prompt = "";
                 }
+                if (this.state.global.global_ref_enabled === undefined) {
+                    this.state.global.global_ref_enabled = false;
+                }
+                for (let i = 1; i <= 4; i++) {
+                    if (this.state.global[`global_ref_${i}`] === undefined) {
+                        this.state.global[`global_ref_${i}`] = "";
+                    }
+                }
                 (this.state.shots || []).forEach(shot => {
                     if (shot.duration_frames === undefined) shot.duration_frames = 124;
                     if (shot.seed === undefined) shot.seed = 123456789;
+                    if (shot.ref_image_1 === undefined) shot.ref_image_1 = "";
+                    if (shot.ref_image_2 === undefined) shot.ref_image_2 = "";
+                    if (shot.ref_image_3 === undefined) shot.ref_image_3 = "";
+                    if (shot.ref_image_4 === undefined) shot.ref_image_4 = "";
                 });
             } else {
                 this.state.project_name = projectName;
@@ -404,6 +439,10 @@ export class H3StateManager {
             lora_strength_2: refShot && refShot.lora_strength_2 !== undefined ? refShot.lora_strength_2 : 0,
             first_frame: "",
             last_frame: "",
+            ref_image_1: "",
+            ref_image_2: "",
+            ref_image_3: "",
+            ref_image_4: "",
             takes: [],
             approved_take: null
         };
@@ -485,6 +524,10 @@ export class H3StateManager {
         if (takeObj.lora_strength_2 !== undefined) shot.lora_strength_2 = takeObj.lora_strength_2;
         if (takeObj.first_frame !== undefined) shot.first_frame = takeObj.first_frame;
         if (takeObj.last_frame !== undefined) shot.last_frame = takeObj.last_frame;
+        for (let i = 1; i <= 4; i++) {
+            const k = `ref_image_${i}`;
+            if (takeObj[k] !== undefined) shot[k] = takeObj[k];
+        }
     }
 
     addTakeToActiveShot(takeData) {

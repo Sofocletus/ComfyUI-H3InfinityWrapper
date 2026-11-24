@@ -51,6 +51,10 @@
       "audio_tail_carryover": "Full Previous Tail",
       "audio_feather_ticks": 0,
       "ref_image_size": "match",
+      "ref2v_mode": [
+        "56",
+        17
+      ],
       "clip": [
         "34",
         0
@@ -66,6 +70,22 @@
       "first_frame": [
         "56",
         12
+      ],
+      "qwen_reference_1": [
+        "56",
+        18
+      ],
+      "qwen_reference_2": [
+        "56",
+        19
+      ],
+      "qwen_reference_3": [
+        "56",
+        20
+      ],
+      "qwen_reference_4": [
+        "56",
+        21
       ]
     },
     "class_type": "H3InfiniteInsertVideo",
@@ -454,7 +474,12 @@
       "last_frame_path": "",
       "global_lora_active": false,
       "global_lora": "60sPsychadelicMovieZ_000002000.safetensors",
-      "global_lora_strength": 1
+      "global_lora_strength": 1,
+      "ref2v_mode": false,
+      "ref_image_1_path": "",
+      "ref_image_2_path": "",
+      "ref_image_3_path": "",
+      "ref_image_4_path": ""
     },
     "class_type": "H3InfinityWrapper_SettingsPayload",
     "_meta": {
